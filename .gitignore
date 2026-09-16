@@ -1,0 +1,16 @@
+node_modules/
+venv/
+__pycache__/
+.env*
+!.env.example
+*.pyc
+dist/
+.DS_Store
+
+# Training assets: retain only the model loaded by backend/main.py at runtime.
+shared/*
+!shared/dataset/
+shared/dataset/*
+!shared/dataset/models/
+shared/dataset/models/*
+!shared/dataset/models/heart_sound_circor_best.keras

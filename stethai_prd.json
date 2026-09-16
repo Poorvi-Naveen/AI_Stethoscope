@@ -1,0 +1,103 @@
+{
+  "projectName": "StethAI",
+  "projectDescription": "A full-stack application for analyzing physiological sounds, currently focused on heart sound classification (murmur detection) using machine learning.",
+  "status": "In Development",
+  "featuresCompleted": [
+    {
+      "category": "Authentication & User Management",
+      "features": [
+        "Login Page",
+        "Signup Page",
+        "Forgot Password Page"
+      ]
+    },
+    {
+      "category": "Core User Interface",
+      "features": [
+        "Main Dashboard",
+        "Analytics Dashboard",
+        "History View",
+        "Not Found (404) Error Page"
+      ]
+    },
+    {
+      "category": "Patient Management",
+      "features": [
+        "Patient Listing Page",
+        "Patient Detail View"
+      ]
+    },
+    {
+      "category": "Sound Analysis Workflows",
+      "features": [
+        "Audio Recording Interface",
+        "Sound Analysis Interface"
+      ]
+    },
+    {
+      "category": "Reporting",
+      "features": [
+        "Individual Report View",
+        "Reports Listing Page"
+      ]
+    },
+    {
+      "category": "Backend & API API",
+      "features": [
+        "FastAPI server setup with CORS middleware",
+        "REST API endpoint for heart sound prediction (/api/predict/heart)"
+      ]
+    },
+    {
+      "category": "Machine Learning Pipeline",
+      "features": [
+        "Audio loading and padding/truncating to fixed lengths",
+        "Feature extraction pipeline using Librosa",
+        "Model inference and probability processing"
+      ]
+    }
+  ],
+  "machineLearningDetails": {
+    "model": {
+      "name": "heart_sound_circor_best.keras",
+      "framework": "TensorFlow / Keras",
+      "outputs": [
+        "Sound Type (Normal vs Murmur)",
+        "Safety Status"
+      ],
+      "classes": [
+        "Normal (Absent)",
+        "Murmur (Present)"
+      ]
+    },
+    "dataProcessing": {
+      "sampleRate": 4000,
+      "clipDurationSeconds": 4.0,
+      "featuresExtracted": "40 MFCCs, Delta, and Delta-Delta (stacked)",
+      "normalization": "Zero-mean, unit-variance normalization per stacked feature map"
+    },
+    "datasets": {
+      "primary": "CIRCOR DigiScope Heart Sound Dataset (used for the current heart sound model)",
+      "secondary": "ICBHI Respiratory Sound Database (present in dataset folder, likely for future lung sound analysis)"
+    }
+  },
+  "techStack": {
+    "frontend": [
+      "React",
+      "TypeScript",
+      "Vite",
+      "Tailwind CSS"
+    ],
+    "backend": [
+      "Python",
+      "FastAPI",
+      "Uvicorn"
+    ],
+    "machineLearning": [
+      "TensorFlow",
+      "Keras",
+      "Librosa",
+      "NumPy"
+    ]
+  }
+}
