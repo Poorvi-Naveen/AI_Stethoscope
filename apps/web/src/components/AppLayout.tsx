@@ -14,7 +14,8 @@ import {
   X,
   User,
 } from 'lucide-react'
-import { logout } from '../store/authSlice'
+import { logout as clearSessionAction } from '../store/authSlice'
+import { logout as apiLogout } from '../api/auth'
 import type { RootState } from '../store'
 
 const navItems = [
@@ -32,8 +33,9 @@ export function AppLayout() {
   const navigate = useNavigate()
   const user = useSelector((state: RootState) => state.auth.user)
 
-  const handleLogout = () => {
-    dispatch(logout())
+  const handleLogout = async () => {
+    await apiLogout()
+    dispatch(clearSessionAction())
     navigate('/login')
   }
 

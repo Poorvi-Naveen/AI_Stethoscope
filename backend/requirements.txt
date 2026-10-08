@@ -6,3 +6,5 @@ librosa
 soundfile
 scikit-learn
 numpy
+supabase
+python-dotenv

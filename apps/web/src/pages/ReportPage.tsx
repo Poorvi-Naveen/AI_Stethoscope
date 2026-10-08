@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { jsPDF } from 'jspdf'
-import { Printer, Share2, Download, Save, ShieldCheck, FileEdit } from 'lucide-react'
-import { getPatient, patientRecordings, recordingPrediction } from '../mocks'
+import { Printer, Share2, Download, Save, ShieldCheck, FileEdit, Loader2 } from 'lucide-react'
+import { getReport, type ReportItem } from '../api/reports'
 import {
   AudioPlayerCompact,
   DiagnosisCard,
@@ -15,14 +15,17 @@ export function ReportPage() {
   const { id } = useParams()
   const { showToast } = useToast()
 
-  const patient = getPatient(id ?? '') ?? getPatient('pat-001')!
-  const recordingsForPatient = patientRecordings(patient.id)
-  const latestRecording = recordingsForPatient[0]
-  const predictionData = latestRecording ? recordingPrediction(latestRecording.id) : null
+  const [report, setReport] = useState<ReportItem | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const disease = predictionData?.label === 'murmur' ? 'Murmur Detected' : 'Normal Heart Sound'
-  const confidence = predictionData ? Math.round(predictionData.confidence * 100) : 95
-  const risk = predictionData?.label === 'murmur' ? 'high' : 'low'
+  useEffect(() => {
+    if (id) {
+      getReport(id).then((data) => {
+        setReport(data)
+        setLoading(false)
+      })
+    }
+  }, [id])
 
   const [notes, setNotes] = useState(
     'Discussed findings with patient. Recommend spirometry assessment, acoustic follow-up, and clinical re-evaluation within two weeks.'
@@ -35,25 +38,27 @@ export function ReportPage() {
   }
 
   const exportPdf = () => {
+    if (!report) return;
     const doc = new jsPDF()
     doc.setFontSize(22)
     doc.text('StethAI Diagnostic Report', 20, 20)
 
     doc.setFontSize(12)
-    doc.text(`Patient: ${patient.firstName} ${patient.lastName} (MRN: ${patient.medicalRecordNumber})`, 20, 36)
-    doc.text(`AI Diagnostic Impression: ${disease}`, 20, 46)
-    doc.text(`Confidence Score: ${confidence}%`, 20, 54)
-    doc.text(`Assessed Risk Level: ${risk.charAt(0).toUpperCase() + risk.slice(1)}`, 20, 62)
+    doc.text(`Patient: ${report.patientName} (MRN: ${report.mrn})`, 20, 36)
+    doc.text(`AI Diagnostic Impression: ${report.disease}`, 20, 46)
+    doc.text(`Confidence Score: ${report.confidence}%`, 20, 54)
+    doc.text(`Assessed Risk Level: ${report.risk.charAt(0).toUpperCase() + report.risk.slice(1)}`, 20, 62)
 
     doc.text('Clinician Notes:', 20, 76)
     doc.text(notes, 20, 84, { maxWidth: 170 })
 
-    doc.save(`stethai-report-${patient.id}.pdf`)
+    doc.save(`stethai-report-${report.patientId}.pdf`)
     showToast('Downloaded PDF clinical report.', 'success')
   }
 
   const shareReport = async () => {
-    const link = `${window.location.origin}/reports/${patient.id}`
+    if (!report) return;
+    const link = `${window.location.origin}/reports/${report.id}`
     if (navigator.share) {
       try {
         await navigator.share({ title: 'StethAI Diagnostic Report', url: link })
@@ -66,13 +71,29 @@ export function ReportPage() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
+      </div>
+    )
+  }
+
+  if (!report) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-slate-500">Report not found.</p>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-6">
       <PageHeader
         backTo="/reports"
         backLabel="All Reports"
         title="Clinical Diagnostic Report"
-        subtitle={`Generated for ${patient.firstName} ${patient.lastName} (${patient.medicalRecordNumber})`}
+        subtitle={`Generated for ${report.patientName} (${report.mrn})`}
         action={
           <div className="flex flex-wrap items-center gap-2.5">
             <Button
@@ -106,8 +127,17 @@ export function ReportPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Main 2 Columns */}
         <div className="space-y-6 lg:col-span-2">
-          <PatientSummaryCard patient={patient} />
-          <DiagnosisCard disease={disease} confidence={confidence} risk={risk as 'low' | 'moderate' | 'high'} />
+          <PatientSummaryCard patient={{
+            id: report.patientId,
+            firstName: report.patientFirstName,
+            lastName: report.patientLastName,
+            medicalRecordNumber: report.mrn,
+            dateOfBirth: new Date(new Date().getFullYear() - report.age, 0, 1).toISOString(),
+            sex: report.gender as 'male' | 'female' | 'other',
+            createdAt: '',
+            updatedAt: ''
+          }} />
+          <DiagnosisCard disease={report.disease} confidence={report.confidence} risk={report.risk as 'low' | 'moderate' | 'high'} />
           <RecommendationList />
 
           <Card>

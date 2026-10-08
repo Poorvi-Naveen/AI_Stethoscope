@@ -1,26 +1,19 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { FileText, Calendar, ChevronRight, Filter } from 'lucide-react'
 import { PageHeader, Card, Badge, Button } from '../components/ui'
-import { patients, predictions, recordings } from '../mocks'
+import { getReports, type ReportItem } from '../api/reports'
 
 export function ReportsPage() {
-  const reports = patients.map((patient) => {
-    const patientRecs = recordings.filter((r) => r.patientId === patient.id)
-    const latestRec = patientRecs[0]
-    const pred = latestRec ? predictions.find((p) => p.recordingId === latestRec.id) : null
+  const [reports, setReports] = useState<ReportItem[]>([])
+  const [loading, setLoading] = useState(true)
 
-    const diseaseLabel = pred?.label === 'murmur' ? 'Mitral Regurgitation' : pred?.label === 'abnormal' ? 'Airway Obstruction' : 'Healthy Normal'
-    const riskLevel: 'low' | 'moderate' | 'high' = pred?.label === 'murmur' ? 'high' : pred?.label === 'abnormal' ? 'moderate' : 'low'
-
-    return {
-      id: patient.id,
-      patientName: `${patient.firstName} ${patient.lastName}`,
-      mrn: patient.medicalRecordNumber,
-      date: latestRec ? new Date(latestRec.recordedAt).toISOString().split('T')[0] : '2026-07-28',
-      disease: diseaseLabel,
-      risk: riskLevel,
-    }
-  })
+  useEffect(() => {
+    getReports().then((data) => {
+      setReports(data)
+      setLoading(false)
+    })
+  }, [])
 
   return (
     <div className="space-y-6">
@@ -30,6 +23,8 @@ export function ReportsPage() {
       />
 
       <div className="space-y-4">
+        {loading && <p className="text-slate-500 text-sm">Loading reports...</p>}
+        {!loading && reports.length === 0 && <p className="text-slate-500 text-sm">No reports found.</p>}
         {reports.map((report) => {
           const badgeVariant =
             report.risk === 'high' ? 'danger' : report.risk === 'moderate' ? 'warning' : 'success'

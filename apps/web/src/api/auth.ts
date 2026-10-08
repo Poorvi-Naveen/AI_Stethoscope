@@ -1,33 +1,70 @@
 import type { AuthSession } from '../types'
-
-const SESSION_KEY = 'stethai.auth.session'
+import { supabase } from './supabaseClient'
 
 export interface LoginInput { email: string; password: string; rememberMe: boolean }
 export interface SignupInput { name: string; email: string; password: string }
 
-function persist(session: AuthSession, rememberMe: boolean) {
-  const storage = rememberMe ? localStorage : sessionStorage
-  sessionStorage.removeItem(SESSION_KEY)
-  localStorage.removeItem(SESSION_KEY)
-  storage.setItem(SESSION_KEY, JSON.stringify(session))
-}
-
 export async function login(input: LoginInput): Promise<AuthSession> {
-  const session: AuthSession = { user: { id: 'usr-demo-001', name: 'Dr. Priya Nair', email: input.email, role: 'doctor' }, token: `mock-token-${crypto.randomUUID()}` }
-  persist(session, input.rememberMe)
-  return session
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: input.email,
+    password: input.password,
+  })
+
+  if (error) throw new Error(error.message)
+  if (!data.session) throw new Error('No session returned')
+
+  // Ensure profile exists (upsert)
+  const name = data.user.user_metadata?.name || data.user.email || 'Dr. Doctor'
+  await supabase.from('profiles').upsert([{ 
+    id: data.user.id, 
+    first_name: name.split(' ')[0],
+    last_name: name.split(' ').slice(1).join(' ') || ''
+  }])
+
+  // We rely on Supabase's built-in session persistence
+  return { 
+    user: { 
+      id: data.user.id, 
+      name: data.user.user_metadata?.name || data.user.email, 
+      email: data.user.email || '', 
+      role: 'doctor' 
+    }, 
+    token: data.session.access_token 
+  }
 }
 
 export async function signup(input: SignupInput): Promise<AuthSession> {
-  const session: AuthSession = { user: { id: 'usr-demo-001', name: input.name, email: input.email, role: 'doctor' }, token: `mock-token-${crypto.randomUUID()}` }
-  persist(session, true)
-  return session
+  const { data, error } = await supabase.auth.signUp({
+    email: input.email,
+    password: input.password,
+    options: {
+      data: {
+        name: input.name,
+      }
+    }
+  })
+
+  if (error) throw new Error(error.message)
+  if (!data.session || !data.user) throw new Error('No session returned. Check your email for confirmation link if required.')
+
+  // Ensure profile exists
+  await supabase.from('profiles').upsert([{ 
+    id: data.user.id, 
+    first_name: input.name.split(' ')[0],
+    last_name: input.name.split(' ').slice(1).join(' ')
+  }])
+
+  return { 
+    user: { 
+      id: data.user.id, 
+      name: input.name, 
+      email: data.user.email || '', 
+      role: 'doctor' 
+    }, 
+    token: data.session.access_token 
+  }
 }
 
-export function getStoredSession(): AuthSession | null {
-  const value = localStorage.getItem(SESSION_KEY) ?? sessionStorage.getItem(SESSION_KEY)
-  if (!value) return null
-  try { return JSON.parse(value) as AuthSession } catch { return null }
+export async function logout() { 
+  await supabase.auth.signOut()
 }
-
-export function logout() { localStorage.removeItem(SESSION_KEY); sessionStorage.removeItem(SESSION_KEY) }

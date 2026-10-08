@@ -30,7 +30,7 @@ export function AnalysisPage() {
     prediction: predData?.label === 'murmur' ? 'Murmur Detected' : 'Normal Heart Sound',
     confidence: predData ? Math.round(predData.confidence * 100) : 95,
     riskLevel: predData?.label === 'murmur' ? 'high' : 'low',
-    probabilities: predData ? {
+    probabilities: predData?.probabilities ? {
       normal: Math.round(predData.probabilities.normal * 100),
       murmur: Math.round(predData.probabilities.murmur * 100),
     } : { normal: 95, murmur: 5 },

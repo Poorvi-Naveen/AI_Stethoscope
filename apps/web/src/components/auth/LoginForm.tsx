@@ -48,6 +48,8 @@ export function LoginForm() {
       const fromPath =
         (location.state as { from?: { pathname?: string } })?.from?.pathname ?? '/dashboard'
       navigate(fromPath, { replace: true })
+    } catch (error: any) {
+      setErrors({ email: error.message || 'Login failed' })
     } finally {
       setLoading(false)
     }

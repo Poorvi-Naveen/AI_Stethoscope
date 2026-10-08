@@ -1,11 +1,22 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Search, Plus, User, Mic, FileText, ChevronRight } from 'lucide-react'
-import { patientDiagnoses, patientRecordings, patients } from '../mocks'
+import { patientDiagnoses, patientRecordings } from '../mocks'
 import { PageHeader, Card, Input, Button, Badge } from '../components/ui'
+import { getPatients } from '../api/patients'
+import type { Patient } from '../types'
 
 export function PatientsPage() {
   const [searchTerm, setSearchTerm] = useState('')
+  const [patients, setPatients] = useState<Patient[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    getPatients().then((data) => {
+      setPatients(data)
+      setLoading(false)
+    })
+  }, [])
 
   const filteredPatients = patients.filter((patient) => {
     const fullName = `${patient.firstName} ${patient.lastName}`.toLowerCase()
@@ -106,7 +117,15 @@ export function PatientsPage() {
                 )
               })}
 
-              {filteredPatients.length === 0 && (
+              {loading && (
+                <tr>
+                  <td colSpan={6} className="py-8 text-center text-sm text-slate-500">
+                    Loading patients...
+                  </td>
+                </tr>
+              )}
+
+              {!loading && filteredPatients.length === 0 && (
                 <tr>
                   <td colSpan={6} className="py-8 text-center text-sm text-slate-500">
                     No matching patient records found.

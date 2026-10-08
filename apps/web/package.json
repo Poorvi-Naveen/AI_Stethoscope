@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "latest",
+    "@supabase/supabase-js": "^2.117.1",
     "@vitejs/plugin-react": "latest",
     "jspdf": "latest",
     "lucide-react": "^1.28.0",

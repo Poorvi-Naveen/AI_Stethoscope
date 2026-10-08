@@ -1,13 +1,20 @@
 import type { Recording, Prediction } from '../types'
 import { recordings, predictions } from '../mocks/data'
+import { supabase } from './supabaseClient'
 
 export async function createRecording(patientId: string, audio: Blob): Promise<Recording> {
   const formData = new FormData()
   formData.append('audio', audio, 'audio.wav')
+  formData.append('patient_id', patientId)
 
+  const { data: { session } } = await supabase.auth.getSession()
+  
   const response = await fetch('/api/predict/heart', {
     method: 'POST',
     body: formData,
+    headers: {
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {})
+    }
   })
 
   if (!response.ok) {
@@ -18,7 +25,7 @@ export async function createRecording(patientId: string, audio: Blob): Promise<R
   const result = await response.json()
 
   const now = new Date().toISOString()
-  const recordingId = `rec-${crypto.randomUUID().substring(0, 8)}`
+  const recordingId = result.id || `rec-${crypto.randomUUID().substring(0, 8)}`
 
   const newRecording: Recording = {
     id: recordingId,

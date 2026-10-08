@@ -1,5 +1,8 @@
-// apps/web/src/App.tsx
+import { useEffect } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
+import { useDispatch } from 'react-redux'
+import { supabase } from './api/supabaseClient'
+import { setSession, clearSession } from './store/authSlice'
 import { AppLayout } from './components/AppLayout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { DashboardPage } from './pages/DashboardPage'
@@ -17,6 +20,36 @@ import { ReportsPage } from './pages/ReportsPage'
 import { HistoryPage } from './pages/HistoryPage'
 
 export default function App() {
+  const dispatch = useDispatch()
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        dispatch(setSession({ 
+          user: { id: session.user.id, name: session.user.email || '', email: session.user.email || '', role: 'doctor' }, 
+          token: session.access_token 
+        }))
+      } else {
+        dispatch(clearSession())
+      }
+    })
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        dispatch(setSession({ 
+          user: { id: session.user.id, name: session.user.email || '', email: session.user.email || '', role: 'doctor' }, 
+          token: session.access_token 
+        }))
+      } else {
+        dispatch(clearSession())
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [dispatch])
+
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />

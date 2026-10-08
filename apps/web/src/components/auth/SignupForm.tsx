@@ -52,6 +52,8 @@ export function SignupForm() {
       const session = await signup(parsed.data)
       dispatch(setSession(session))
       navigate('/dashboard', { replace: true })
+    } catch (error: any) {
+      setErrors({ email: error.message || 'Registration failed' })
     } finally {
       setLoading(false)
     }
