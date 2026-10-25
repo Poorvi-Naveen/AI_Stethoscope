@@ -14,3 +14,7 @@ shared/dataset/*
 !shared/dataset/models/
 shared/dataset/models/*
 !shared/dataset/models/heart_sound_circor_best.keras
+
+# Live audio recordings
+recordings/
+*.wav

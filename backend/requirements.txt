@@ -8,3 +8,4 @@ scikit-learn
 numpy
 supabase
 python-dotenv
+noisereduce

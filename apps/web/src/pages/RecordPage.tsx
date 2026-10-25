@@ -49,15 +49,24 @@ export function RecordPage() {
 
     setIsSubmitting(true)
     try {
-      showToast('Creating patient record & processing audio...', 'info')
+      showToast('Executing clinical DSP filtering & deep learning analysis...', 'info')
+      const isLive = Boolean(recordedAudio && !file)
       const created = await createPatient(parsed.data)
-      await createRecording(created.id, audio)
+      const prediction = await createRecording(created.id, audio, isLive)
 
       navigate(`/patients/${created.id}/analysis`, {
-        state: { patientData: parsed.data, medicalDetails: medical },
+        state: {
+          patientData: parsed.data,
+          medicalDetails: medical,
+          prediction,
+          reportId: prediction.id,
+          audioName: file ? file.name : 'Live USB Stethoscope Auscultation (16,000 Hz)',
+        },
       })
-    } catch {
-      showToast('Failed to start analysis session.', 'error')
+    } catch (err) {
+      console.error('Analysis error:', err)
+      const msg = err instanceof Error ? err.message : 'Failed to analyze heart sound.'
+      showToast(msg, 'error')
     } finally {
       setIsSubmitting(false)
     }
