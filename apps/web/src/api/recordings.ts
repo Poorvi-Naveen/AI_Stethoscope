@@ -2,6 +2,10 @@ import type { Recording, Prediction } from '../types'
 import { recordings, predictions } from '../mocks/data'
 import { supabase } from './supabaseClient'
 
+// In development, leave this unset to use Vite's /api proxy. In production,
+// point it at the separately deployed FastAPI service (for example Render).
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+
 export async function createRecording(patientId: string, audio: Blob): Promise<Recording> {
   const formData = new FormData()
   formData.append('audio', audio, 'audio.wav')
@@ -9,7 +13,7 @@ export async function createRecording(patientId: string, audio: Blob): Promise<R
 
   const { data: { session } } = await supabase.auth.getSession()
   
-  const response = await fetch('/api/predict/heart', {
+  const response = await fetch(`${apiBaseUrl}/api/predict/heart`, {
     method: 'POST',
     body: formData,
     headers: {

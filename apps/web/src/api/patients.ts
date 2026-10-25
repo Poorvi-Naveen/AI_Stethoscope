@@ -5,31 +5,73 @@ export type CreatePatientInput = Pick<Patient, 'firstName' | 'lastName' | 'sex' 
   age: number
 }
 
-export async function getPatients(): Promise<Patient[]> {
-  const { data, error } = await supabase
-    .from('patients')
-    .select('*')
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    console.error('Error fetching patients:', error)
-    return []
-  }
-
-  return data.map(p => ({
+function mapDatabasePatient(p: any): Patient {
+  const birthYear = new Date().getFullYear() - (p.age || 0)
+  return {
     id: p.id,
-    firstName: p.first_name,
-    lastName: p.last_name,
-    dateOfBirth: new Date(new Date().getFullYear() - (p.age || 0), 0, 1).toISOString(),
+    firstName: p.first_name || 'Patient',
+    lastName: p.last_name || '',
+    dateOfBirth: new Date(birthYear, 0, 1).toISOString(),
     sex: p.gender || 'unknown',
-    medicalRecordNumber: `MRN-${p.id.substring(0,5)}`,
+    medicalRecordNumber: `MRN-${(p.id || '').substring(0, 5).toUpperCase()}`,
     phone: null,
     email: '',
     address: null,
     notes: p.medical_history || '',
-    createdAt: p.created_at,
-    updatedAt: p.created_at,
-  }))
+    createdAt: p.created_at || new Date().toISOString(),
+    updatedAt: p.created_at || new Date().toISOString(),
+  }
+}
+
+export async function getPatients(userId?: string): Promise<Patient[]> {
+  try {
+    let resolvedUserId = userId
+    if (!resolvedUserId) {
+      const { data: { user } } = await supabase.auth.getUser()
+      resolvedUserId = user?.id
+    }
+
+    let query = supabase
+      .from('patients')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (resolvedUserId) {
+      query = query.eq('user_id', resolvedUserId)
+    }
+
+    const { data, error } = await query
+
+    if (error) {
+      console.error('Error fetching patients for user:', error)
+      return []
+    }
+
+    return (data || []).map(mapDatabasePatient)
+  } catch (err) {
+    console.error('Unexpected error fetching patients:', err)
+    return []
+  }
+}
+
+export async function getPatientById(id: string): Promise<Patient | null> {
+  try {
+    const { data, error } = await supabase
+      .from('patients')
+      .select('*')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (error || !data) {
+      console.error('Error fetching patient by id:', error)
+      return null
+    }
+
+    return mapDatabasePatient(data)
+  } catch (err) {
+    console.error('Unexpected error fetching patient by id:', err)
+    return null
+  }
 }
 
 export async function createPatient(input: CreatePatientInput): Promise<Patient> {
@@ -45,8 +87,8 @@ export async function createPatient(input: CreatePatientInput): Promise<Patient>
         last_name: input.lastName,
         age: input.age,
         gender: input.sex,
-        medical_history: 'Newly created patient profile.'
-      }
+        medical_history: 'Newly created patient profile.',
+      },
     ])
     .select()
     .single()
@@ -55,18 +97,5 @@ export async function createPatient(input: CreatePatientInput): Promise<Patient>
     throw new Error(error.message)
   }
 
-  return {
-    id: data.id,
-    firstName: data.first_name,
-    lastName: data.last_name,
-    dateOfBirth: new Date(new Date().getFullYear() - (data.age || 0), 0, 1).toISOString(),
-    sex: data.gender || 'unknown',
-    medicalRecordNumber: `MRN-${data.id.substring(0,5)}`,
-    phone: null,
-    email: '',
-    address: null,
-    notes: data.medical_history || '',
-    createdAt: data.created_at,
-    updatedAt: data.created_at,
-  }
+  return mapDatabasePatient(data)
 }

@@ -13,3 +13,58 @@
   .btn-primary { @apply inline-flex items-center justify-center rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2; }
   .badge { @apply inline-flex rounded-full px-2.5 py-1 text-xs font-semibold; }
 }
+
+@keyframes eqBarPulse {
+  0%, 100% {
+    transform: scaleY(0.25);
+    opacity: 0.6;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
+@keyframes sweepScan {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(1000%);
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.02);
+  }
+}
+
+@keyframes ecgTravel {
+  0% {
+    stroke-dashoffset: 850;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-ecg-travel {
+  stroke-dasharray: 220 650;
+  animation: ecgTravel 2.4s linear infinite;
+}
+
+.animate-sweep-scan {
+  animation: sweepScan 3.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 4s ease-in-out infinite;
+}
+
+

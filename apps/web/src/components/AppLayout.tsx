@@ -17,6 +17,7 @@ import {
 import { logout as clearSessionAction } from '../store/authSlice'
 import { logout as apiLogout } from '../api/auth'
 import type { RootState } from '../store'
+import { formatClinicianName, getClinicianInitials } from '../utils/greeting'
 
 const navItems = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -101,10 +102,12 @@ export function AppLayout() {
         <div className="hidden border-t border-slate-200 p-4 lg:flex lg:items-center lg:justify-between">
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-brand-100 text-xs font-bold text-brand-800">
-              {user?.name ? user.name.split(' ').map((n) => n[0]).join('') : 'PN'}
+              {getClinicianInitials(user?.name, user?.email)}
             </div>
             <div className="truncate text-left">
-              <p className="truncate text-xs font-bold text-slate-800">{user?.name || 'Dr. Priya Nair'}</p>
+              <p className="truncate text-xs font-bold text-slate-800">
+                {formatClinicianName(user?.name, user?.email)}
+              </p>
               <p className="truncate text-[11px] text-slate-500 capitalize">{user?.role || 'Doctor'} · Cardiology</p>
             </div>
           </div>
@@ -131,7 +134,7 @@ export function AppLayout() {
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2 rounded-full bg-slate-100 py-1 px-3 text-xs font-semibold text-slate-700">
               <User className="h-3.5 w-3.5 text-brand-700" />
-              <span>{user?.name || 'Dr. Priya Nair'}</span>
+              <span>{formatClinicianName(user?.name, user?.email)}</span>
             </div>
           </div>
         </header>

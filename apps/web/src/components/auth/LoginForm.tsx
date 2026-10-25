@@ -17,8 +17,8 @@ type Values = z.infer<typeof schema>
 
 export function LoginForm() {
   const [values, setValues] = useState<Values>({
-    email: 'dr.priya@stethai.test',
-    password: 'password123',
+    email: '',
+    password: '',
     rememberMe: true,
   })
   const [errors, setErrors] = useState<Partial<Record<keyof Values, string>>>({})

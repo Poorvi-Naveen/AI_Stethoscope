@@ -23,28 +23,54 @@ export default function App() {
   const dispatch = useDispatch()
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        dispatch(setSession({ 
-          user: { id: session.user.id, name: session.user.email || '', email: session.user.email || '', role: 'doctor' }, 
-          token: session.access_token 
-        }))
-      } else {
+    const syncUserSession = async (session: any) => {
+      if (!session?.user) {
         dispatch(clearSession())
+        return
       }
+
+      let name = session.user.user_metadata?.name || session.user.user_metadata?.full_name
+      if (!name) {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('first_name, last_name')
+            .eq('id', session.user.id)
+            .maybeSingle()
+          if (profile && (profile.first_name || profile.last_name)) {
+            name = `${profile.first_name || ''} ${profile.last_name || ''}`.trim()
+          }
+        } catch (err) {
+          console.error('Failed to load clinician profile:', err)
+        }
+      }
+
+      if (!name && session.user.email) {
+        const local = session.user.email.split('@')[0]
+        name = local.charAt(0).toUpperCase() + local.slice(1)
+      }
+
+      dispatch(
+        setSession({
+          user: {
+            id: session.user.id,
+            name: name || 'Doctor',
+            email: session.user.email || '',
+            role: 'doctor',
+          },
+          token: session.access_token,
+        })
+      )
+    }
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      syncUserSession(session)
     })
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        dispatch(setSession({ 
-          user: { id: session.user.id, name: session.user.email || '', email: session.user.email || '', role: 'doctor' }, 
-          token: session.access_token 
-        }))
-      } else {
-        dispatch(clearSession())
-      }
+      syncUserSession(session)
     })
 
     return () => subscription.unsubscribe()
