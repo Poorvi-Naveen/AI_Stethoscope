@@ -13,12 +13,26 @@ SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY
 
 supabase: Client | None = None
 
-if SUPABASE_URL and SUPABASE_KEY:
-    try:
-        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-        print("Connected to Supabase successfully.")
-    except Exception as e:
-        print(f"Warning: Failed to connect to Supabase: {e}")
-else:
-    print("Notice: Supabase environment variables not fully configured. Running in local standalone mode.")
+def init_supabase():
+    """
+    Ensures the Supabase client is initialized.
+    Returns the client if successful, otherwise None.
+    """
+    global supabase
+    if supabase is not None:
+        return supabase
+
+    if SUPABASE_URL and SUPABASE_KEY:
+        try:
+            supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+            print("Connected to Supabase successfully.")
+        except Exception as e:
+            print(f"Warning: Failed to connect to Supabase: {e}")
+    else:
+        print("Notice: Supabase environment variables not fully configured.")
+
+    return supabase
+
+# Initial call to setup the global supabase object
+init_supabase()
 
