@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 import tensorflow as tf
 from supabase_client import supabase, init_supabase
 import uuid
+from signal_quality import assess_quality
 
 # ---------------------------------------------------------------------------
 # Logging — structured, no sensitive data
@@ -118,8 +119,12 @@ async def health():
 # ---------------------------------------------------------------------------
 # Feature extraction helpers (unchanged from original)
 # ---------------------------------------------------------------------------
-def load_clip(audio_bytes: bytes) -> np.ndarray:
-    """Load audio bytes, pad/trim to CLIP_SAMPLES, and peak-normalise."""
+def load_clip(audio_bytes: bytes):
+    """Decode audio. Returns (normalised_clip_for_model, quality_report).
+
+    Quality is assessed on the RAW waveform, before peak-normalisation,
+    because normalisation would hide a silent or very noisy recording.
+    """
     with io.BytesIO(audio_bytes) as audio_file:
         y, _ = librosa.load(audio_file, sr=SAMPLE_RATE, mono=True)
 
@@ -128,9 +133,10 @@ def load_clip(audio_bytes: bytes) -> np.ndarray:
     else:
         y = y[:CLIP_SAMPLES]
 
-    peak = np.max(np.abs(y)) + 1e-8
-    return (y / peak).astype(np.float32)
+    quality = assess_quality(y, SAMPLE_RATE)
 
+    peak = np.max(np.abs(y)) + 1e-8
+    return (y / peak).astype(np.float32), quality
 
 def extract_features(y: np.ndarray, sr: int = SAMPLE_RATE) -> np.ndarray:
     """Stack MFCCs, delta, and delta-delta; zero-mean / unit-variance normalise."""
@@ -172,7 +178,11 @@ async def predict_heart(
             )
 
         # --- Feature extraction ---
-        y = load_clip(contents)
+        y, quality = load_clip(contents)
+        if not quality.ok:
+            # Reject noisy/silent/clipped recordings instead of guessing.
+            # Nothing is stored and no report is created.
+            raise HTTPException(status_code=422, detail=quality.message)
         X = extract_features(y)
 
         # Add batch dimension
@@ -238,6 +248,7 @@ async def predict_heart(
             "modelName": "heart_sound_circor",
             "modelVersion": "best",
             "storagePath": storage_path,
+            "signalQuality": quality.to_dict(),
         }
 
     except HTTPException:
