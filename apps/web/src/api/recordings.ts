@@ -50,6 +50,27 @@ export interface HeartPredictionResponse {
   windowsAnalyzed?: number
   durationSeconds?: number
   isLiveRecording?: boolean
+  signalQuality?: {
+    ok: boolean
+    reason: string | null
+    message: string
+    peak: number
+    clipped_fraction: number
+    low_band_ratio: number
+    envelope_dynamic_db: number
+  }
+}
+
+/**
+ * Thrown when no real model prediction could be obtained.
+ * The UI must show this as an error. It must NEVER be replaced with a
+ * default/guessed diagnosis (e.g. "normal").
+ */
+export class PredictionUnavailableError extends Error {
+  constructor(message: string) {
+    super(message)
+    this.name = 'PredictionUnavailableError'
+  }
 }
 
 /**
@@ -103,7 +124,7 @@ function blobToDataUrl(blob: Blob): Promise<string> {
  */
 async function generateLocalDspResponse(audio: Blob): Promise<AudioProcessResponse> {
   const now = new Date()
-  const dateString = now.toISOString().replace(/[-:T.Z]/g, '').slice(0, 14)
+  const dateString = now.toISOString().replace(/-/g, '').replace(/:/g, '').replace('T', '').replace('Z', '').slice(0, 14);
   const dataUrl = await blobToDataUrl(audio)
 
   let duration = 10
@@ -156,53 +177,6 @@ async function generateLocalDspResponse(audio: Blob): Promise<AudioProcessRespon
   }
 }
 
-/**
- * Robust Client-Side Clinical Acoustic Evaluation when backend neural network is offline.
- * Implements the exact same clinical rule as backend/main.py:
- * Live stethoscope recordings evaluate to normal with dynamic confidence 78% - 88%.
- */
-async function generateLocalHeartPrediction(
-  audio: Blob | File,
-  patientId: string,
-  isActuallyLive: boolean,
-  backendNotice?: string
-): Promise<HeartPredictionResponse> {
-  const dspRes = await generateLocalDspResponse(audio)
-  const now = new Date()
-  const dateString = now.toISOString().replace(/[-:T.Z]/g, '').slice(0, 14)
-
-  // Clinical evaluation rule for live stethoscope PCG recordings:
-  const normalProb = isActuallyLive ? 0.824 : 0.875
-  const murmurProb = Math.round((1.0 - normalProb) * 1000) / 1000
-
-  return {
-    id: `rep-${crypto.randomUUID().substring(0, 8)}`,
-    dateString,
-    timestampFilename: `${dateString}.wav`,
-    rawTimestampFilename: `raw_${dateString}.wav`,
-    label: 'normal',
-    confidence: normalProb,
-    probabilities: {
-      normal: normalProb,
-      murmur: murmurProb,
-      max_murmur_window: Math.round(murmurProb * 0.35 * 1000) / 1000,
-      artifact: 0.0,
-    },
-    safetyStatus: 0.91,
-    inferenceMs: 65,
-    modelName: 'heart_sound_circor_best',
-    modelVersion: '1.0-keras (local fallback)',
-    storagePath: `recordings/${patientId}/${crypto.randomUUID()}.wav`,
-    dspStagesCompleted: dspRes.stagesCompleted,
-    dspMetrics: dspRes.metrics,
-    rawWavDataUrl: dspRes.rawWavDataUrl,
-    processedWavDataUrl: dspRes.processedWavDataUrl,
-    windowsAnalyzed: Math.max(1, Math.round(dspRes.durationSeconds / 4)),
-    durationSeconds: dspRes.durationSeconds,
-    isLiveRecording: isActuallyLive,
-  }
-}
-
 export async function processAudio(audio: Blob): Promise<AudioProcessResponse> {
   const formData = new FormData()
   formData.append('audio', audio, 'recording.wav')
@@ -249,37 +223,44 @@ export async function predictHeartSound(
     console.warn('Auth session check note:', err)
   }
 
+  let response: Response
   try {
-    const response = await fetch('/api/predict/heart', {
+    response = await fetch('/api/predict/heart', {
       method: 'POST',
       body: formData,
       headers: {
         ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       },
     })
-
-    if (!response.ok) {
-      const details = await extractResponseDetails(response, 'Heart sound analysis failed')
-      console.warn(`Backend inference HTTP error (${response.status}): ${details}. Using local clinical acoustic analysis.`)
-      return await generateLocalHeartPrediction(audio, patientId, isActuallyLive, details)
-    }
-
-    const rawText = await response.text()
-    const result = JSON.parse(rawText) as HeartPredictionResponse
-    if (!result.label || typeof result.confidence !== 'number' || !result.probabilities) {
-      throw new Error('Backend returned an unexpected prediction payload format.')
-    }
-
-    return result
-  } catch (err: any) {
-    console.warn('Backend inference unavailable, using local clinical acoustic evaluation:', err)
-    return await generateLocalHeartPrediction(
-      audio,
-      patientId,
-      isActuallyLive,
-      err instanceof Error ? err.message : 'Backend offline'
+  } catch (err) {
+    console.error('Prediction service unreachable:', err)
+    throw new PredictionUnavailableError(
+      'Analysis service is unreachable. No prediction was made. Please check the backend and try again.'
     )
   }
+
+  if (!response.ok) {
+    const details = await extractResponseDetails(response, 'Heart sound analysis failed')
+    // 422 = recording rejected by the signal-quality check (noisy / silent / clipped).
+    // The backend message tells the clinician what to fix; pass it through as-is.
+    throw new PredictionUnavailableError(
+      response.status === 422
+        ? details
+        : `Analysis failed (${response.status}): ${details}. No prediction was made.`
+    )
+  }
+
+  let result: HeartPredictionResponse
+  try {
+    result = JSON.parse(await response.text()) as HeartPredictionResponse
+  } catch {
+    throw new PredictionUnavailableError('Analysis returned an unreadable response. No prediction was made.')
+  }
+  if (!result.label || typeof result.confidence !== 'number' || !result.probabilities) {
+    throw new PredictionUnavailableError('Analysis returned an invalid result. No prediction was made.')
+  }
+
+  return result
 }
 
 export async function createRecording(
@@ -306,8 +287,7 @@ export async function createRecording(
   }
 
   const newPrediction: Prediction = {
-    id: `pred-${crypto.randomUUID().substring(0, 8)}`,
-    recordingId: recordingId,
+    id: `pred-${crypto.jsonUUID().substring(0, 8)}`,
     modelName: result.modelName || 'heart_sound_circor_best',
     modelVersion: result.modelVersion || '1.0-keras',
     label: result.label,
