@@ -51,15 +51,17 @@ export async function getReports(userId?: string): Promise<ReportItem[]> {
       // Map sound_type to display string
       const diseaseLabel =
         report.sound_type === 'murmur'
-          ? 'Mitral Regurgitation'
+          ? 'Murmur Detected'
+          : report.sound_type === 'artifact'
+          ? 'Acoustic Artifact / Inconclusive'
           : report.sound_type === 'abnormal'
-          ? 'Airway Obstruction'
-          : 'Healthy Normal'
+          ? 'Abnormal Acoustic Pattern'
+          : 'Normal Heart Sound'
 
       const riskLevel: 'low' | 'moderate' | 'high' =
         report.sound_type === 'murmur'
           ? 'high'
-          : report.sound_type === 'abnormal'
+          : report.sound_type === 'abnormal' || report.sound_type === 'artifact'
           ? 'moderate'
           : 'low'
 
@@ -112,14 +114,16 @@ export async function getReport(id: string): Promise<ReportItem | null> {
     const diseaseLabel =
       report.sound_type === 'murmur'
         ? 'Murmur Detected'
+        : report.sound_type === 'artifact'
+        ? 'Acoustic Artifact / Inconclusive'
         : report.sound_type === 'abnormal'
-        ? 'Airway Obstruction'
+        ? 'Abnormal Acoustic Pattern'
         : 'Normal Heart Sound'
 
     const riskLevel: 'low' | 'moderate' | 'high' =
       report.sound_type === 'murmur'
         ? 'high'
-        : report.sound_type === 'abnormal'
+        : report.sound_type === 'abnormal' || report.sound_type === 'artifact'
         ? 'moderate'
         : 'low'
 

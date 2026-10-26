@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { jsPDF } from 'jspdf'
 import { Printer, Share2, Download, Save, ShieldCheck, FileEdit, Loader2 } from 'lucide-react'
 import { getReport, type ReportItem } from '../api/reports'
+import { supabase } from '../api/supabaseClient'
 import {
   AudioPlayerCompact,
   DiagnosisCard,
@@ -28,7 +29,7 @@ export function ReportPage() {
   }, [id])
 
   const [notes, setNotes] = useState(
-    'Discussed findings with patient. Recommend spirometry assessment, acoustic follow-up, and clinical re-evaluation within two weeks.'
+    'Discussed findings with patient. Recommend echocardiography assessment, auscultation follow-up, and cardiology clinical re-evaluation within two weeks.'
   )
   const [status, setStatus] = useState<'Saved' | 'Unsaved'>('Saved')
 
@@ -173,7 +174,13 @@ export function ReportPage() {
 
         {/* Right Sidebar */}
         <div className="space-y-6">
-          <AudioPlayerCompact />
+          <AudioPlayerCompact
+            audioUrl={
+              report?.storagePath
+                ? supabase.storage.from('audio_recordings').getPublicUrl(report.storagePath).data.publicUrl
+                : undefined
+            }
+          />
 
           <Card className="space-y-3 bg-gradient-to-br from-white to-brand-50/30">
             <div className="flex items-center gap-2">

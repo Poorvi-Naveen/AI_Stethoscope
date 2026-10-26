@@ -177,12 +177,26 @@ async function generateLocalDspResponse(audio: Blob): Promise<AudioProcessRespon
   }
 }
 
+
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '')
+
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0
+    const v = c === 'x' ? r : (r & 0x3) | 0x8
+    return v.toString(16)
+  })
+}
+
 export async function processAudio(audio: Blob): Promise<AudioProcessResponse> {
   const formData = new FormData()
   formData.append('audio', audio, 'recording.wav')
 
   try {
-    const response = await fetch('/api/audio/process', {
+    const response = await fetch(`${API_BASE_URL}/api/audio/process`, {
       method: 'POST',
       body: formData,
     })
@@ -225,7 +239,7 @@ export async function predictHeartSound(
 
   let response: Response
   try {
-    response = await fetch('/api/predict/heart', {
+    response = await fetch(`${API_BASE_URL}/api/predict/heart`, {
       method: 'POST',
       body: formData,
       headers: {
@@ -271,7 +285,7 @@ export async function createRecording(
   const result = await predictHeartSound(patientId, audio, true, isLive)
 
   const now = new Date().toISOString()
-  const recordingId = result.id || `rec-${crypto.randomUUID().substring(0, 8)}`
+  const recordingId = result.id || `rec-${generateUUID().substring(0, 8)}`
 
   const newRecording: Recording = {
     id: recordingId,
@@ -287,7 +301,8 @@ export async function createRecording(
   }
 
   const newPrediction: Prediction = {
-    id: `pred-${crypto.jsonUUID().substring(0, 8)}`,
+    id: `pred-${generateUUID().substring(0, 8)}`,
+    recordingId,
     modelName: result.modelName || 'heart_sound_circor_best',
     modelVersion: result.modelVersion || '1.0-keras',
     label: result.label,

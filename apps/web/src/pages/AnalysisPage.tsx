@@ -53,17 +53,35 @@ export function AnalysisPage() {
     : predictions.find((p) => p.recordingId === id) || predictions[0]
 
   const isMurmur = predData?.label === 'murmur'
-  const predictionLabel = isMurmur ? 'Murmur Detected' : 'Normal Heart Sound'
+  const isArtifact = predData?.label === 'artifact'
+  const isAbnormal = predData?.label === 'abnormal'
+
+  let predictionLabel = 'Normal Heart Sound'
+  let riskLevel: 'low' | 'moderate' | 'high' = 'low'
+  if (isMurmur) {
+    predictionLabel = 'Murmur Detected'
+    riskLevel = 'high'
+  } else if (isArtifact) {
+    predictionLabel = 'Acoustic Artifact / Inconclusive'
+    riskLevel = 'moderate'
+  } else if (isAbnormal) {
+    predictionLabel = 'Abnormal Acoustic Pattern'
+    riskLevel = 'moderate'
+  }
+
   const confidenceScore = predData ? Math.round(predData.confidence * 100) : 95
 
   const response: AnalysisResponse = {
     prediction: predictionLabel,
     confidence: confidenceScore,
-    riskLevel: isMurmur ? 'high' : 'low',
+    riskLevel,
     probabilities: predData?.probabilities
       ? {
         normal: Math.round((predData.probabilities.normal ?? 0) * 100),
         murmur: Math.round((predData.probabilities.murmur ?? 0) * 100),
+        ...(predData.probabilities.artifact !== undefined && predData.probabilities.artifact > 0
+          ? { artifact: Math.round(predData.probabilities.artifact * 100) }
+          : {}),
       }
       : { normal: 95, murmur: 5 },
     detectedFeatures: [
@@ -73,6 +91,8 @@ export function AnalysisPage() {
       `Clinical DSP: DC removal, 20–2000Hz bandpass, 50Hz notch, spectral noise reduction, 0.90 norm`,
       isMurmur
         ? 'Systolic ejection / abnormal murmur frequencies detected'
+        : isArtifact
+        ? 'Non-cardiac acoustic artifacts or irregular non-physiological signal detected. Reposition stethoscope and re-record.'
         : 'Clear S1 and S2 heart sound intervals without pathological murmur patterns',
     ],
   }

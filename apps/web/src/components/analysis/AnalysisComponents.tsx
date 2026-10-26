@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Play, Pause, Check, Activity, ShieldAlert, Sparkles, Volume2 } from 'lucide-react'
 import { Card, Badge, Button } from '../ui'
 
@@ -85,23 +85,55 @@ export function AnalysisStepList({ step, progress = 94 }: { step: number; progre
 export function AudioWaveformPlayer({ audioUrl }: { audioUrl?: string }) {
   const [isPlaying, setIsPlaying] = useState(false)
   const [playbackTime, setPlaybackTime] = useState(0)
-  const duration = 12
+  const [duration, setDuration] = useState(10)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
-    let interval: number | undefined
-    if (isPlaying) {
-      interval = window.setInterval(() => {
-        setPlaybackTime((prev) => {
-          if (prev >= duration) {
-            setIsPlaying(false)
-            return 0
-          }
-          return prev + 1
-        })
-      }, 1000)
+    if (!audioUrl) return
+    const audio = new Audio(audioUrl)
+    audioRef.current = audio
+
+    const onLoadedMetadata = () => {
+      if (audio.duration && !isNaN(audio.duration) && isFinite(audio.duration)) {
+        setDuration(Math.round(audio.duration))
+      }
     }
-    return () => window.clearInterval(interval)
-  }, [isPlaying, duration])
+    const onTimeUpdate = () => {
+      setPlaybackTime(Math.round(audio.currentTime))
+    }
+    const onEnded = () => {
+      setIsPlaying(false)
+      setPlaybackTime(0)
+    }
+
+    audio.addEventListener('loadedmetadata', onLoadedMetadata)
+    audio.addEventListener('timeupdate', onTimeUpdate)
+    audio.addEventListener('ended', onEnded)
+
+    return () => {
+      audio.pause()
+      audio.removeEventListener('loadedmetadata', onLoadedMetadata)
+      audio.removeEventListener('timeupdate', onTimeUpdate)
+      audio.removeEventListener('ended', onEnded)
+      audioRef.current = null
+    }
+  }, [audioUrl])
+
+  const togglePlay = () => {
+    if (!audioRef.current) {
+      setIsPlaying(!isPlaying)
+      return
+    }
+    if (isPlaying) {
+      audioRef.current.pause()
+      setIsPlaying(false)
+    } else {
+      audioRef.current.play().then(() => setIsPlaying(true)).catch((err) => {
+        console.warn('Audio playback error:', err)
+        setIsPlaying(false)
+      })
+    }
+  }
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60)
@@ -124,7 +156,7 @@ export function AudioWaveformPlayer({ audioUrl }: { audioUrl?: string }) {
       <div className="mt-4 flex items-center gap-4">
         <Button
           variant="primary"
-          onClick={() => setIsPlaying(!isPlaying)}
+          onClick={togglePlay}
           aria-label={isPlaying ? 'Pause audio' : 'Play audio'}
           className="rounded-full h-11 w-11 p-0 shrink-0 shadow-md"
         >

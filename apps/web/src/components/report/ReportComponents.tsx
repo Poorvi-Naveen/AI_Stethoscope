@@ -62,9 +62,9 @@ export function DiagnosisCard({
 
 export function RecommendationList() {
   const items = [
-    'Review reported clinical symptoms and medical history alongside AI inference.',
-    'Consider spirometry or echocardiography to evaluate physiological obstruction.',
-    'Schedule a follow-up review within two weeks or as symptoms dictate.',
+    'Review reported clinical symptoms and auscultation findings alongside neural network inference.',
+    'Consider echocardiography (transthoracic echo) to evaluate cardiac valve morphology and hemodynamics if murmur is present.',
+    'Schedule a follow-up auscultation review within two weeks or as symptoms dictate.',
   ]
 
   return (
@@ -82,15 +82,43 @@ export function RecommendationList() {
   )
 }
 
-export function AudioPlayerCompact() {
+export function AudioPlayerCompact({ audioUrl }: { audioUrl?: string }) {
   const [isPlaying, setIsPlaying] = useState(false)
+  const [duration, setDuration] = useState('00:10')
+
+  const togglePlay = () => {
+    if (!audioUrl) return
+    const audioEl = document.getElementById('report-audio-el') as HTMLAudioElement | null
+    if (!audioEl) return
+
+    if (isPlaying) {
+      audioEl.pause()
+      setIsPlaying(false)
+    } else {
+      audioEl.play().then(() => setIsPlaying(true)).catch(() => setIsPlaying(false))
+    }
+  }
 
   return (
     <Card>
+      {audioUrl && (
+        <audio
+          id="report-audio-el"
+          src={audioUrl}
+          onEnded={() => setIsPlaying(false)}
+          onLoadedMetadata={(e) => {
+            const d = Math.round((e.target as HTMLAudioElement).duration || 10)
+            const m = Math.floor(d / 60)
+            const s = d % 60
+            setDuration(`${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`)
+          }}
+          className="hidden"
+        />
+      )}
       <div className="flex items-center gap-3">
         <Button
           variant="primary"
-          onClick={() => setIsPlaying(!isPlaying)}
+          onClick={togglePlay}
           className="h-10 w-10 p-0 rounded-full shrink-0 shadow-xs"
         >
           {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
@@ -100,12 +128,12 @@ export function AudioPlayerCompact() {
             <span className="flex items-center gap-1">
               <Volume2 className="h-3.5 w-3.5 text-brand-700" /> Auscultation Track
             </span>
-            <span className="font-mono text-slate-400">00:20</span>
+            <span className="font-mono text-slate-400">{duration}</span>
           </div>
           <div className="mt-2 h-2 rounded-full bg-slate-100 overflow-hidden">
             <div
               className={`h-full rounded-full bg-brand-600 transition-all duration-300 ${
-                isPlaying ? 'w-2/3' : 'w-1/3'
+                isPlaying ? 'w-full animate-pulse' : 'w-1/3'
               }`}
             />
           </div>
